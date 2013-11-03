@@ -77,17 +77,15 @@ var LightsOut = React.createClass({
     if (j !== 0) board[i][j - 1] = !board[i][j - 1];
     if (j !== board.length - 1) board[i][j + 1] = !board[i][j + 1];
 
+    var done = this.state.board.every(function(row) {
+      return row.every(function(cell) {
+        return !!cell;
+      });
+    });
     // setState is asynchronous. Pass a callback that verifies if all the lights
     // are on; if so, create new game
-    this.setState({board: this.state.board}, function() {
-      var done = this.state.board.every(function(row) {
-        return row.every(function(cell) {
-          return !!cell;
-        });
-      });
-
+    this.setState({board: this.state.board, done: done}, function() {
       if (done) {
-        this.setState({done: true});
         setTimeout(function() {
           this.setState({
             board: this.getNewRandomBoard(),
