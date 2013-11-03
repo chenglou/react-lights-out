@@ -108,14 +108,14 @@ var Switch = React.createClass({
       this.setState({scale: 1}, function() {
         this.toggleSiblingActiveAnim(0, done);
       }.bind(this));
-    }.bind(this), 100);
+    }.bind(this), 200);
   },
 
   toggleActiveAim: function(framesDone, done) {
-    var totalDuration = 300;
+    var totalDuration = 400;
     var totalFrameBudget = totalDuration / (1000 / 60);
     var initScale = 1;
-    var halfScale = 1.1
+    var halfScale = 0.9
     var curScale = sin(framesDone, totalFrameBudget, initScale, halfScale);
 
     if (framesDone >= totalFrameBudget) {
@@ -131,10 +131,10 @@ var Switch = React.createClass({
   },
 
   toggleSiblingActiveAnim: function(framesDone, done) {
-    var totalDuration = 300;
+    var totalDuration = 400;
     var totalFrameBudget = totalDuration / (1000 / 60);
     var initScale = 1;
-    var halfScale = 1.1;
+    var halfScale = 0.9;
     var curScale = sin(framesDone, totalFrameBudget, initScale, halfScale);
 
     if (framesDone >= totalFrameBudget) {
