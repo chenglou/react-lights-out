@@ -1,6 +1,6 @@
 # [React](http://facebook.github.io/react/)-lights-out
 
-Simple demo of the React framework's power and flexibility. [Result here](https://rawgithub.com/chenglou/react-lights-out/master/index.html/).
+Simple demo of the React framework's power and flexibility. [Result here](http://rawgithub.com/chenglou/react-lights-out/master/index.html).
 
 ## install
 
