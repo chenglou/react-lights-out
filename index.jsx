@@ -36,14 +36,27 @@ function easeOutQuad(t, b, c, d) {
   return -c *(t/=d)*(t-2) + b;
 }
 
+function easeOutBounce(t, b, c, d) {
+  if ((t/=d) < (1/2.75)) {
+    return c*(7.5625*t*t) + b;
+  } else if (t < (2/2.75)) {
+    return c*(7.5625*(t-=(1.5/2.75))*t + .75) + b;
+  } else if (t < (2.5/2.75)) {
+    return c*(7.5625*(t-=(2.25/2.75))*t + .9375) + b;
+  } else {
+    return c*(7.5625*(t-=(2.625/2.75))*t + .984375) + b;
+  }
+}
+
 var Apple = {
   configAnim: function() {
     // easingFunc, duration, initValue, finalValue
     // Penner's easing functions take different parameters. Convert here into
-    // [easingFunc, currentTime, initValue, changeInValue, duration]
+    // [easingFunc, currentTime, initValue, changeInValue, duration, currentAbsTime]
     var a = arguments;
-    return [a[0], 0, a[2], a[3] - a[2], a[1]];
+    return [a[0], 0, a[2], a[3] - a[2], a[1], Date.now()];
   },
+
   animate: function(stateConfig, done) {
     var stateObj = {};
     for (var key in stateConfig) {
@@ -65,21 +78,18 @@ var Apple = {
       if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
 
       var curConfig = stateConfig[key];
-      if (curConfig[1] > curConfig[4]) continue;
-      stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4])
-      curConfig[1] = curConfig[1] + 1000/60;
-      // allDone = true;
-      allDone = false;
+      var now = Date.now();
+      if (now - curConfig[5] < curConfig[4]) {
+        allDone = false;
+        curConfig[1] = now - curConfig[5]
+      } else {
+        curConfig[1] = curConfig[4];
+      }
+
+      stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4]);
     }
 
-    // TODO: not jump to end, end not defined for sin
     if (allDone) {
-      // for (var key in stateConfig) {
-      //   if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-      //   stateObj[key] = stateConfig[key][4];
-      // }
-      // this.setState(stateObj, done);
-      // return;
       return done()
     }
 
@@ -90,6 +100,11 @@ var Apple = {
     }.bind(this));
   }
 };
+
+
+
+//----------------end apple mixin----------------
+
 
 var Switch = React.createClass({
   mixins: [Apple],
@@ -103,132 +118,17 @@ var Switch = React.createClass({
   },
 
   componentDidMount: function() {
-    this.animate({
-      scale: this.configAnim(easeOutQuad, 300, 0, 1),
-      rotation: this.configAnim(easeOutQuad, 300, 0, 360)
-    }, function() {
-      console.log('le done');
-    });
-  },
-
-  componentWillReceiveProps: function() {
-    this.transitioning = false;
-  },
-
-  componentDidUpdate: function() {
-    // var props = this.props;
-    // if (this.transitioning) {
-    //   return;
-    // }
-    // if (props.resetAnimDelay < 0 && !props.playToggle && !props.playSiblingToggle) {
-    //   return;
-    // }
-
-    // this.transitioning = true;
-    // if (props.playToggle) {
-    //   this.toggleAnim(function() {
-    //     // done
-    //   });
-    // } else if (props.playSiblingToggle) {
-    //   this.toggleSiblingAnim(function() {
-    //     // done
-    //   });
-    // } else {
-    //   this.resetAnim(function() {
-    //     // done
-    //   }.bind(this));
-    // }
-  },
-
-  toggleAnim: function(done) {
-    this.setState({scale: 1}, function() {
-      this.toggleActiveAim(0, done);
-    }.bind(this));
-  },
-
-  toggleSiblingAnim: function(done) {
     setTimeout(function() {
-      this.setState({scale: 1}, function() {
-        this.toggleSiblingActiveAnim(0, done);
-      }.bind(this));
-    }.bind(this), 200);
-  },
-
-  toggleActiveAim: function(framesDone, done) {
-    var totalDuration = 400;
-    var totalFrameBudget = totalDuration / (1000 / 60);
-    var initScale = 1;
-    var halfScale = 0.9
-    var curScale = sin(framesDone, totalFrameBudget, initScale, halfScale);
-
-    if (framesDone >= totalFrameBudget) {
-      this.setState({scale: initScale}, done);
-      return;
-    }
-
-    requestAnimationFrame(function() {
-      this.setState({scale: curScale}, function() {
-        this.toggleActiveAim(framesDone + 1, done);
-      }.bind(this));
-    }.bind(this));
-  },
-
-  toggleSiblingActiveAnim: function(framesDone, done) {
-    var totalDuration = 400;
-    var totalFrameBudget = totalDuration / (1000 / 60);
-    var initScale = 1;
-    var halfScale = 0.9;
-    var curScale = sin(framesDone, totalFrameBudget, initScale, halfScale);
-
-    if (framesDone >= totalFrameBudget) {
-      this.setState({scale: initScale}, done);
-      return;
-    }
-
-    requestAnimationFrame(function() {
-      this.setState({scale: curScale}, function() {
-        this.toggleSiblingActiveAnim(framesDone + 1, done);
-      }.bind(this));
-    }.bind(this));
-  },
-
-  resetAnim: function(done) {
-    this.setState({scale: 0}, function() {
-      setTimeout(function() {
-        this.enterActiveAnim(0, done);
-      }.bind(this), this.props.resetAnimDelay);
-    }.bind(this));
-  },
-
-  enterAnim: function(done) {
-    setTimeout(function() {
-      this.setState({scale: 0}, function() {
-        this.enterActiveAnim(0, done);
-      }.bind(this));
-    }.bind(this), this.props.resetAnimDelay);
-  },
-
-  enterActiveAnim: function(framesDone, done) {
-    var totalDuration = 300;
-    var totalFrameBudget = totalDuration / (1000 / 60);
-    var initScale = 0;
-    var finalScale = 1;
-    var curScale = easeOutQuad(framesDone, totalFrameBudget, initScale, finalScale);
-
-    if (framesDone >= totalFrameBudget) {
-      this.setState({scale: finalScale}, done);
-      return;
-    }
-
-    requestAnimationFrame(function() {
-      this.setState({scale: curScale}, function() {
-        this.enterActiveAnim(framesDone + 1, done);
-      }.bind(this));
-    }.bind(this));
+      this.animate({
+        scale: this.configAnim(easeOutBounce, 800, 0, 1),
+        rotation: this.configAnim(easeOutQuad, 500, 0, 360)
+      }, function() {
+        // console.log('done');
+      });
+    }.bind(this), (this.props.posX + this.props.posY) * 35);
   },
 
   render: function() {
-    // got the props from parent (LightsOut)
     var classes = {
       'switch': true,
       'switch-done': this.props.done,
@@ -245,7 +145,6 @@ var Switch = React.createClass({
 
 var LightsOut = React.createClass({
   getInitialState: function() {
-    // component's internal value(s)
     return {
       board: this.getNewRandomBoard(),
       done: false,
@@ -263,7 +162,6 @@ var LightsOut = React.createClass({
   },
 
   handleReset: function() {
-    // updating the state auto re-renders the component UI
     this.setState({
       board: this.getNewRandomBoard(),
       done: false,
@@ -276,15 +174,13 @@ var LightsOut = React.createClass({
   handleSwitchClick: function(i, j) {
     var board = this.state.board;
     var lastCellIndex = board.length - 1;
-    // flip current and ajacent switches
+
     board[i][j] = !board[i][j];
     if (i !== 0) board[i - 1][j] = !board[i - 1][j];
     if (i !== board[i].length - 1) board[i + 1][j] = !board[i + 1][j];
     if (j !== 0) board[i][j - 1] = !board[i][j - 1];
     if (j !== board.length - 1) board[i][j + 1] = !board[i][j + 1];
 
-    // setState is asynchronous. Pass a callback that verifies if all the lights
-    // are on; if so, create new game
     var done = this.state.board.every(function(row) {
       return row.every(function(cell) {
         return !!cell;
@@ -334,21 +230,6 @@ var LightsOut = React.createClass({
                   {
                     row.map(function(cell, j) {
                       // 5x5 swiches. Pass some props to each one
-                      var resetAnimDelay = -1;
-                      var playToggle = false;
-                      var playSiblingToggle = false;
-                      if (state.reset) {
-                        resetAnimDelay = (i + j) * 35;
-                      }
-                      if (this.state.clickedI != null && this.state.clickedJ != null) {
-                        if (state.clickedI === i && state.clickedJ === j) {
-                          playToggle = true;
-                        } else if ((Math.abs(state.clickedI - i) === 1 && j === state.clickedJ)
-                          || (Math.abs(state.clickedJ - j) === 1 && i === state.clickedI)) {
-                          playSiblingToggle = true;
-                        }
-                      }
-
                       return (
                         <Switch
                           isOn={!!cell}
@@ -356,9 +237,6 @@ var LightsOut = React.createClass({
                           onMouseDown={this.handleSwitchClick.bind(this, i, j)}
                           posX={i}
                           posY={j}
-                          resetAnimDelay={resetAnimDelay}
-                          playToggle={playToggle}
-                          playSiblingToggle={playSiblingToggle}
                         />
                       )
                     }, this)
