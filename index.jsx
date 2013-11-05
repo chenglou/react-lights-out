@@ -28,44 +28,29 @@ var boards = [
 //   [[1]]
 // ]
 
-var TransitionGroup = React.addons.TransitionGroup;
 var classSet = React.addons.classSet;
 
-
-function easeOut3(curX, destX, initY, destY) {
-  // lol no, brb fetching real formula
-  // but hey at least this looks pretty
-  return Math.pow(curX / destX, 1/3) * (destY - initY) + initY;
-}
-
-function linear(curX, destX, initY, destY) {
-  return curX / destX * (destY - initY) + initY;
-}
-
-function sin(curX, destX, initY, halfY) {
-  return Math.sin(curX / destX * Math.PI) * (halfY - initY) + initY;
-}
-
-function merge(dest, source) {
-  for (var key in source) {
-    if (!{}.hasOwnProperty.call(source, key)) continue;
-    dest[key] = source[key];
-  }
-
-  return dest;
+// https://github.com/danro/jquery-easing/blob/master/jquery.easing.js
+// t: current time, b: beginning value, c: change in value, d: duration
+function easeOutQuad(t, b, c, d) {
+  return -c *(t/=d)*(t-2) + b;
 }
 
 var Apple = {
   configAnim: function() {
-    return [].slice.apply(arguments);
+    // easingFunc, duration, initValue, finalValue
+    // Penner's easing functions take different parameters. Convert here into
+    // [easingFunc, currentTime, initValue, changeInValue, duration]
+    var a = arguments;
+    return [a[0], 0, a[2], a[3] - a[2], a[1]];
   },
   animate: function(stateConfig, done) {
     var stateObj = {};
     for (var key in stateConfig) {
       if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-      stateConfig[key].unshift(0)
-      // 0: currentFrame, 1: func, 2: duration, 3: initValue, 4: finalValue
-      stateObj[key] = stateConfig[key][3];
+
+      // set state value to the initialValue passed in `stateConfig`
+      stateObj[key] = stateConfig[key][2];
     }
 
     this.setState(stateObj, function() {
@@ -75,23 +60,27 @@ var Apple = {
 
   __transition: function(stateObj, stateConfig, done) {
     var allDone = true;
+
     for (var key in stateConfig) {
       if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
+
       var curConfig = stateConfig[key];
-      // 0: currentFrame, 1: func, 2: duration, 3: initValue, 4: finalValue
-      if (curConfig[0] >= curConfig[2] / (1000 / 60)) continue;
-      stateObj[key] = curConfig[1].bind(null, curConfig[0] * (1000 / 60)).apply(null, curConfig.slice(2));
-      curConfig[0] = curConfig[0] + 1;
+      if (curConfig[1] > curConfig[4]) continue;
+      stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4])
+      curConfig[1] = curConfig[1] + 1000/60;
+      // allDone = true;
       allDone = false;
     }
 
+    // TODO: not jump to end, end not defined for sin
     if (allDone) {
-      for (var key in stateConfig) {
-        if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-        stateObj[key] = stateConfig[key][4];
-      }
-      this.setState(stateObj, done);
-      return;
+      // for (var key in stateConfig) {
+      //   if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
+      //   stateObj[key] = stateConfig[key][4];
+      // }
+      // this.setState(stateObj, done);
+      // return;
+      return done()
     }
 
     requestAnimationFrame(function() {
@@ -115,8 +104,8 @@ var Switch = React.createClass({
 
   componentDidMount: function() {
     this.animate({
-      scale: this.configAnim(easeOut3, 300, 0, 1),
-      rotation: this.configAnim(easeOut3, 300, 0, 360)
+      scale: this.configAnim(easeOutQuad, 300, 0, 1),
+      rotation: this.configAnim(easeOutQuad, 300, 0, 360)
     }, function() {
       console.log('le done');
     });
@@ -224,7 +213,7 @@ var Switch = React.createClass({
     var totalFrameBudget = totalDuration / (1000 / 60);
     var initScale = 0;
     var finalScale = 1;
-    var curScale = easeOut3(framesDone, totalFrameBudget, initScale, finalScale);
+    var curScale = easeOutQuad(framesDone, totalFrameBudget, initScale, finalScale);
 
     if (framesDone >= totalFrameBudget) {
       this.setState({scale: finalScale}, done);
