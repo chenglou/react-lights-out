@@ -46,26 +46,80 @@ function sin(curX, destX, initY, halfY) {
   return Math.sin(curX / destX * Math.PI) * (halfY - initY) + initY;
 }
 
-// var Apple = {
-//   animate: function(initState, transitionState, doneFunc) {
-//     initState(doneFunc);
-//   }
-// };
+function merge(dest, source) {
+  for (var key in source) {
+    if (!{}.hasOwnProperty.call(source, key)) continue;
+    dest[key] = source[key];
+  }
+
+  return dest;
+}
+
+var Apple = {
+  configAnim: function() {
+    return [].slice.apply(arguments);
+  },
+  animate: function(stateConfig, done) {
+    var stateObj = {};
+    for (var key in stateConfig) {
+      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
+      stateConfig[key].unshift(0)
+      // 0: currentFrame, 1: func, 2: duration, 3: initValue, 4: finalValue
+      stateObj[key] = stateConfig[key][3];
+    }
+
+    this.setState(stateObj, function() {
+      this.__transition(stateObj, stateConfig, done);
+    }.bind(this));
+  },
+
+  __transition: function(stateObj, stateConfig, done) {
+    var allDone = true;
+    for (var key in stateConfig) {
+      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
+      var curConfig = stateConfig[key];
+      // 0: currentFrame, 1: func, 2: duration, 3: initValue, 4: finalValue
+      if (curConfig[0] >= curConfig[2] / (1000 / 60)) continue;
+      stateObj[key] = curConfig[1].bind(null, curConfig[0] * (1000 / 60)).apply(null, curConfig.slice(2));
+      curConfig[0] = curConfig[0] + 1;
+      allDone = false;
+    }
+
+    if (allDone) {
+      for (var key in stateConfig) {
+        if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
+        stateObj[key] = stateConfig[key][4];
+      }
+      this.setState(stateObj, done);
+      return;
+    }
+
+    requestAnimationFrame(function() {
+      this.setState(stateObj, function() {
+        this.__transition(stateObj, stateConfig, done);
+      }.bind(this));
+    }.bind(this));
+  }
+};
 
 var Switch = React.createClass({
+  mixins: [Apple],
   transitioning: false,
 
   getInitialState: function() {
     return {
-      scale: 0
+      scale: 0,
+      rotation: 0
     }
   },
 
   componentDidMount: function() {
-    this.transitioning = true;
-    this.enterAnim(function() {
-      this.transitioning = false;
-    }.bind(this));
+    this.animate({
+      scale: this.configAnim(easeOut3, 300, 0, 1),
+      rotation: this.configAnim(easeOut3, 300, 0, 360)
+    }, function() {
+      console.log('le done');
+    });
   },
 
   componentWillReceiveProps: function() {
@@ -73,28 +127,28 @@ var Switch = React.createClass({
   },
 
   componentDidUpdate: function() {
-    var props = this.props;
-    if (this.transitioning) {
-      return;
-    }
-    if (props.resetAnimDelay < 0 && !props.playToggle && !props.playSiblingToggle) {
-      return;
-    }
+    // var props = this.props;
+    // if (this.transitioning) {
+    //   return;
+    // }
+    // if (props.resetAnimDelay < 0 && !props.playToggle && !props.playSiblingToggle) {
+    //   return;
+    // }
 
-    this.transitioning = true;
-    if (props.playToggle) {
-      this.toggleAnim(function() {
-        // done
-      });
-    } else if (props.playSiblingToggle) {
-      this.toggleSiblingAnim(function() {
-        // done
-      });
-    } else {
-      this.resetAnim(function() {
-        // done
-      }.bind(this));
-    }
+    // this.transitioning = true;
+    // if (props.playToggle) {
+    //   this.toggleAnim(function() {
+    //     // done
+    //   });
+    // } else if (props.playSiblingToggle) {
+    //   this.toggleSiblingAnim(function() {
+    //     // done
+    //   });
+    // } else {
+    //   this.resetAnim(function() {
+    //     // done
+    //   }.bind(this));
+    // }
   },
 
   toggleAnim: function(done) {
@@ -193,8 +247,8 @@ var Switch = React.createClass({
       'switch-off': !this.props.isOn
     }
     var style = {
-      transform: 'scale(' + this.state.scale + ')',
-      WebkitTransform: 'scale(' + this.state.scale + ')'
+      transform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)',
+      WebkitTransform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)'
     };
     return <div className={classSet(classes)} style={style} onMouseDown={this.props.onMouseDown} />
   }
