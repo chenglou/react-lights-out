@@ -89,12 +89,11 @@ var Apple = {
       stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4]);
     }
 
-    if (allDone) {
-      return done()
-    }
 
     requestAnimationFrame(function() {
       this.setState(stateObj, function() {
+        if (allDone) return done();
+
         this.__transition(stateObj, stateConfig, done);
       }.bind(this));
     }.bind(this));
