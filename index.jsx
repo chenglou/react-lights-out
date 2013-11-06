@@ -57,13 +57,13 @@ var Apple = {
     return [a[0], 0, a[2], a[3] - a[2], a[1], Date.now()];
   },
 
-  animate: function(propName, ref, unitName, configArr, done) {
+  animate: function(propName, ref, valueStr, configArr, done) {
     // console.log(this.refs);
-    this.refs[ref].getDOMNode().style[propName] = configArr[2] + unitName;
-    this.__transition(propName, ref, unitName, configArr, done);
+    this.refs[ref].getDOMNode().style[propName] = valueStr.replace('%s', configArr[2]);
+    this.__transition(propName, ref, valueStr, configArr, done);
   },
 
-  __transition: function(propName, ref, unitName, configArr, done) {
+  __transition: function(propName, ref, valueStr, configArr, done) {
     var allDone = true;
 
     var now = Date.now();
@@ -77,12 +77,12 @@ var Apple = {
     var newVal = configArr[0](configArr[1], configArr[2], configArr[3], configArr[4]);
     console.log(newVal);
     requestAnimationFrame(function() {
-      this.refs[ref].getDOMNode().style[propName] = newVal + unitName;
+      this.refs[ref].getDOMNode().style[propName] = valueStr.replace('%s', newVal);
       if (allDone) {
         return done && done();
       }
 
-      this.__transition(propName, ref, unitName, configArr, done);
+      this.__transition(propName, ref, valueStr, configArr, done);
     }.bind(this));
   }
 };
@@ -111,8 +111,7 @@ var Switch = React.createClass({
 
   playResetAnim: function() {
     // setTimeout(function() {
-      this.animate('height', 'switch', 'px', this.configAnim(easeOutBounce, 800, 0, 36));
-      this.animate('width', 'switch', 'px', this.configAnim(easeOutBounce, 800, 0, 36));
+      this.animate('webkitTransform', 'switch', 'scale(%s)', this.configAnim(easeOutBounce, 800, 0, 1));
     // }.bind(this), (this.props.posX + this.props.posY) * 35);
   },
 
