@@ -49,8 +49,6 @@ function easeOutBounce(t, b, c, d) {
 }
 
 var Apple = {
-  __animating: false,
-
   configAnim: function() {
     // easingFunc, duration, initValue, finalValue
     // Penner's easing functions take different parameters. Convert here into
@@ -59,50 +57,32 @@ var Apple = {
     return [a[0], 0, a[2], a[3] - a[2], a[1], Date.now()];
   },
 
-  animate: function(stateConfig, done) {
-    if (this.__animating) return;
-    this.__animating = true;
-
-    var stateObj = {};
-    for (var key in stateConfig) {
-      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-
-      // set state value to the initialValue passed in `stateConfig`
-      stateObj[key] = stateConfig[key][2];
-    }
-
-    this.setState(stateObj, function() {
-      this.__transition(stateObj, stateConfig, done);
-    }.bind(this));
+  animate: function(propName, ref, unitName, configArr, done) {
+    // console.log(this.refs);
+    this.refs[ref].getDOMNode().style[propName] = configArr[2] + unitName;
+    this.__transition(propName, ref, unitName, configArr, done);
   },
 
-  __transition: function(stateObj, stateConfig, done) {
+  __transition: function(propName, ref, unitName, configArr, done) {
     var allDone = true;
 
-    for (var key in stateConfig) {
-      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-
-      var curConfig = stateConfig[key];
-      var now = Date.now();
-      if (now - curConfig[5] < curConfig[4]) {
-        allDone = false;
-        curConfig[1] = now - curConfig[5]
-      } else {
-        curConfig[1] = curConfig[4];
-      }
-
-      stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4]);
+    var now = Date.now();
+    if (now - configArr[5] < configArr[4]) {
+      allDone = false;
+      configArr[1] = now - configArr[5]
+    } else {
+      configArr[1] = configArr[4];
     }
 
+    var newVal = configArr[0](configArr[1], configArr[2], configArr[3], configArr[4]);
+    console.log(newVal);
     requestAnimationFrame(function() {
-      this.setState(stateObj, function() {
-        if (allDone) {
-          this.__animating = false;
-          return done();
-        }
+      this.refs[ref].getDOMNode().style[propName] = newVal + unitName;
+      if (allDone) {
+        return done && done();
+      }
 
-        this.__transition(stateObj, stateConfig, done);
-      }.bind(this));
+      this.__transition(propName, ref, unitName, configArr, done);
     }.bind(this));
   }
 };
@@ -113,11 +93,10 @@ var Apple = {
 
 var Switch = React.createClass({
   mixins: [Apple],
-  transitioning: false,
 
   getInitialState: function() {
     return {
-      scale: 0,
+      scale: 1,
       rotation: 0
     }
   },
@@ -127,14 +106,13 @@ var Switch = React.createClass({
   },
 
   componentDidUpdate: function() {
-    this.playResetAnim();
+    // this.playResetAnim();
   },
 
   playResetAnim: function() {
     // setTimeout(function() {
-      this.animate({
-        scale: this.configAnim(easeOutBounce, 800, 0, 1),
-      });
+      this.animate('height', 'switch', 'px', this.configAnim(easeOutBounce, 800, 0, 36));
+      this.animate('width', 'switch', 'px', this.configAnim(easeOutBounce, 800, 0, 36));
     // }.bind(this), (this.props.posX + this.props.posY) * 35);
   },
 
@@ -145,7 +123,7 @@ var Switch = React.createClass({
   },
 
   onMouseDown: function(e) {
-    this.playClickedAnim();
+    // this.playClickedAnim();
     this.props.onMouseDown && this.props.onMouseDown(e);
   },
 
@@ -160,7 +138,7 @@ var Switch = React.createClass({
       transform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)',
       WebkitTransform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)'
     };
-    return <div className={classSet(classes)} style={style} onMouseDown={this.onMouseDown} />
+    return <div ref="switch" className={classSet(classes)} style={style} onMouseDown={this.onMouseDown} />
   }
 });
 
