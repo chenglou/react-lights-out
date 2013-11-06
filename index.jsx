@@ -49,6 +49,8 @@ function easeOutBounce(t, b, c, d) {
 }
 
 var Apple = {
+  __animating: false,
+
   configAnim: function() {
     // easingFunc, duration, initValue, finalValue
     // Penner's easing functions take different parameters. Convert here into
@@ -58,6 +60,9 @@ var Apple = {
   },
 
   animate: function(stateConfig, done) {
+    if (this.__animating) return;
+    this.__animating = true;
+
     var stateObj = {};
     for (var key in stateConfig) {
       if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
@@ -89,17 +94,18 @@ var Apple = {
       stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4]);
     }
 
-
     requestAnimationFrame(function() {
       this.setState(stateObj, function() {
-        if (allDone) return done();
+        if (allDone) {
+          this.__animating = false;
+          return done();
+        }
 
         this.__transition(stateObj, stateConfig, done);
       }.bind(this));
     }.bind(this));
   }
 };
-
 
 
 //----------------end apple mixin----------------
@@ -117,14 +123,30 @@ var Switch = React.createClass({
   },
 
   componentDidMount: function() {
-    setTimeout(function() {
+    this.playResetAnim();
+  },
+
+  componentDidUpdate: function() {
+    this.playResetAnim();
+  },
+
+  playResetAnim: function() {
+    // setTimeout(function() {
       this.animate({
         scale: this.configAnim(easeOutBounce, 800, 0, 1),
-        rotation: this.configAnim(easeOutQuad, 500, 0, 360)
-      }, function() {
-        // console.log('done');
       });
-    }.bind(this), (this.props.posX + this.props.posY) * 35);
+    // }.bind(this), (this.props.posX + this.props.posY) * 35);
+  },
+
+  playClickedAnim: function() {
+    this.animate({
+      scale: this.configAnim(easeOutQuad, 300, .8, 1),
+    }, 'clickedAnim');
+  },
+
+  onMouseDown: function(e) {
+    this.playClickedAnim();
+    this.props.onMouseDown && this.props.onMouseDown(e);
   },
 
   render: function() {
@@ -138,7 +160,7 @@ var Switch = React.createClass({
       transform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)',
       WebkitTransform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)'
     };
-    return <div className={classSet(classes)} style={style} onMouseDown={this.props.onMouseDown} />
+    return <div className={classSet(classes)} style={style} onMouseDown={this.onMouseDown} />
   }
 });
 
