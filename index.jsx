@@ -50,58 +50,54 @@ function easeOutBounce(t, b, c, d) {
 
 var Apple = {
   __animating: false,
+  __animConfigs: {},
 
-  configAnim: function() {
-    // easingFunc, duration, initValue, finalValue
-    // Penner's easing functions take different parameters. Convert here into
-    // [easingFunc, currentTime, initValue, changeInValue, duration, currentAbsTime]
-    var a = arguments;
-    return [a[0], 0, a[2], a[3] - a[2], a[1], Date.now()];
-  },
+  animate: function(config) {
+    if (this.__animConfigs[config.stateName]) return;
 
-  animate: function(stateConfig, done) {
-    if (this.__animating) return;
-    this.__animating = true;
-
-    var stateObj = {};
-    for (var key in stateConfig) {
-      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-
-      // set state value to the initialValue passed in `stateConfig`
-      stateObj[key] = stateConfig[key][2];
+    config.initTime = Date.now();
+    this.__animConfigs[config.stateName] = config;
+    if (!this.__animating) {
+      this.__animating = true;
+      // transitionParams[0] is the init value
+      this.__transition();
     }
-
-    this.setState(stateObj, function() {
-      this.__transition(stateObj, stateConfig, done);
-    }.bind(this));
   },
 
   __transition: function(stateObj, stateConfig, done) {
-    var allDone = true;
+    var configs = this.__animConfigs;
+    var stateObj = {};
+    var progressTime;
+    var doneCallbacks = {};
 
-    for (var key in stateConfig) {
-      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-
-      var curConfig = stateConfig[key];
+    for (var key in configs) {
+      var config = configs[key];
+      var duration = config.transitionParams[2];
       var now = Date.now();
-      if (now - curConfig[5] < curConfig[4]) {
-        allDone = false;
-        curConfig[1] = now - curConfig[5]
+
+      if (now - config.initTime < duration) {
+        progressTime = now - config.initTime;
       } else {
-        curConfig[1] = curConfig[4];
+        // animate to the final state one last time to avoid rounding errors
+        progressTime = duration;
+        doneCallbacks[key] = config.callback;
       }
 
-      stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4]);
+      stateObj[key] = config.transitionMethod.apply(null, [progressTime].concat(config.transitionParams));
     }
 
     requestAnimationFrame(function() {
       this.setState(stateObj, function() {
-        if (allDone) {
+        for (var key in doneCallbacks) {
+          doneCallbacks[key]();
+          delete configs[key];
+        }
+        if (Object.keys(configs).length === 0) {
           this.__animating = false;
-          return done();
+          return;
         }
 
-        this.__transition(stateObj, stateConfig, done);
+        this.__transition();
       }.bind(this));
     }.bind(this));
   }
@@ -131,17 +127,30 @@ var Switch = React.createClass({
   },
 
   playResetAnim: function() {
-    // setTimeout(function() {
-      this.animate({
-        scale: this.configAnim(easeOutBounce, 800, 0, 1),
-      });
-    // }.bind(this), (this.props.posX + this.props.posY) * 35);
+    var animPolicy = {
+      stateName: 'scale',
+      transitionMethod: easeOutBounce,
+      transitionParams: [0, 1, 800],
+      behavior: 'interrupt',
+      delay: (this.props.posX + this.props.posY) * 35,
+      callback: function() {
+        console.log('done reset');
+      }
+    };
+    this.animate(animPolicy);
   },
 
   playClickedAnim: function() {
-    this.animate({
-      scale: this.configAnim(easeOutQuad, 300, .8, 1),
-    }, 'clickedAnim');
+    var animPolicy = {
+      stateName: 'scale',
+      transitionMethod: easeOutQuad,
+      transitionParams: [.8, 1, 300],
+      behavior: 'interrupt',
+      callback: function() {
+        console.log('done');
+      }
+    };
+    this.animate(animPolicy);
   },
 
   onMouseDown: function(e) {
