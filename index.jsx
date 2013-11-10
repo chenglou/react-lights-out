@@ -51,16 +51,17 @@ function easeOutBounce(t, b, c, d) {
 }
 
 var Apple = {
-  __animating: false,
+  __transitioning: false,
 
   stopAnimation: function(stateNames) {
     if (!this.__animConfigs) return;
 
     stateNames.forEach(function(name) {
       if (!this.__animConfigs[name]) return;
-
-      this.__animConfigs[name].callback();
-      delete this.__animConfigs[name];
+      var config = this.__animConfigs[name];
+      config.callback();
+      this.__stateObj[name] = config.transitionMethod.apply(null, [config.transitionParams[2]].concat(config.transitionParams));
+      delete this.__animConfigs[name]
     }, this);
   },
 
@@ -76,8 +77,8 @@ var Apple = {
     configs[config.stateName] = config;
 
     config.initTime = Date.now();
-    if (!this.__animating) {
-      this.__animating = true;
+    if (!this.__transitioning) {
+      this.__transitioning = true;
       this.__transition();
     }
   },
@@ -116,7 +117,7 @@ var Apple = {
           delete state[key]
         }
         if (Object.keys(configs).length === 0) {
-          this.__animating = false;
+          this.__transitioning = false;
           return;
         }
 
@@ -132,7 +133,6 @@ var Apple = {
 
 var Switch = React.createClass({
   mixins: [Apple],
-  transitioning: false,
 
   getInitialState: function() {
     return {
@@ -146,8 +146,6 @@ var Switch = React.createClass({
   },
 
   playResetAnim: function() {
-    this.stopAnimation(['scale', 'rotation', 'fade']);
-
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutBounce,
@@ -157,7 +155,6 @@ var Switch = React.createClass({
         console.log('done reset scale');
       }
     };
-    this.animate(animPolicy);
 
     var animPolicy2 = {
       stateName: 'rotation',
@@ -168,14 +165,19 @@ var Switch = React.createClass({
         console.log('done reset rotate');
       }
     };
+
+    this.stopAnimation(['scale', 'rotation', 'fade']);
+    this.animate(animPolicy);
     this.animate(animPolicy2);
   },
 
   playClickedAnim: function() {
+    this.stopAnimation(['scale', 'rotation', 'fade']);
+
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
-      transitionParams: [.8, 10.5, 300],
+      transitionParams: [.8, 2, 300],
       callback: function() {
         console.log('done click');
       }
@@ -184,8 +186,8 @@ var Switch = React.createClass({
   },
 
   onMouseDown: function(e) {
-    this.playClickedAnim();
-    this.props.onMouseDown && this.props.onMouseDown(e);
+    // this.playClickedAnim();
+    this.props.onMouseDown && this.props.onMouseDown(this.playClickedAnim);
   },
 
   render: function() {
@@ -195,6 +197,7 @@ var Switch = React.createClass({
       'switch-on': this.props.isOn,
       'switch-off': !this.props.isOn
     }
+
     var style = {
       transform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)',
       WebkitTransform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)'
@@ -213,13 +216,6 @@ var LightsOut = React.createClass({
   },
 
   componentDidUpdate: function() {
-    // this.refs.grid.props.children.forEach(function(row) {
-    //   console.log('basha', row._lifeCycleState);
-    //   row.props.children.forEach(function(cell) {
-    //     console.log(cell._lifeCycleState, 'baha');
-    //     cell.playResetAnim();
-    //   });
-    // });
     this.state.board.forEach(function(row, i) {
       row.forEach(function(cell, j) {
         this.refs[i + ',' + j].playResetAnim();
@@ -246,7 +242,7 @@ var LightsOut = React.createClass({
     });
   },
 
-  handleSwitchClick: function(i, j) {
+  handleSwitchClick: function(i, j, callback) {
     var board = this.state.board;
     var lastCellIndex = board.length - 1;
 
@@ -261,7 +257,7 @@ var LightsOut = React.createClass({
         return !!cell;
       });
     });
-
+    done = false;
     var updatedState = {
       board: this.state.board,
       done: done,
@@ -271,6 +267,7 @@ var LightsOut = React.createClass({
     }
 
     this.setState(updatedState, function() {
+      callback && callback();
       if (done) {
         setTimeout(function() {
           this.setState({
