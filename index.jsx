@@ -24,19 +24,21 @@ var boards = [
   ]
 ];
 
-// boards = [
-//   [[1]]
-// ]
+boards = [
+  [[1]]
+]
 
 var classSet = React.addons.classSet;
 
 // https://github.com/danro/jquery-easing/blob/master/jquery.easing.js
 // t: current time, b: beginning value, c: change in value, d: duration
 function easeOutQuad(t, b, c, d) {
+  c = c - b;
   return -c *(t/=d)*(t-2) + b;
 }
 
 function easeOutBounce(t, b, c, d) {
+  c = c - b;
   if ((t/=d) < (1/2.75)) {
     return c*(7.5625*t*t) + b;
   } else if (t < (2/2.75)) {
@@ -51,57 +53,74 @@ function easeOutBounce(t, b, c, d) {
 var Apple = {
   __animating: false,
 
-  configAnim: function() {
-    // easingFunc, duration, initValue, finalValue
-    // Penner's easing functions take different parameters. Convert here into
-    // [easingFunc, currentTime, initValue, changeInValue, duration, currentAbsTime]
-    var a = arguments;
-    return [a[0], 0, a[2], a[3] - a[2], a[1], Date.now()];
-  },
+  animate: function(config) {
+    if (!this.__animConfigs) {
+      this.__animConfigs = {};
+    }
+    var behavior = config.behavior || 'continue';
+    var configs = this.__animConfigs;
 
-  animate: function(stateConfig, done) {
-    if (this.__animating) return;
-    this.__animating = true;
+    if (configs[config.stateName]) {
+      if (behavior === 'continue') {
+        config.transitionParams[0] = this.__stateObj[config.stateName];
+        configs[config.stateName] = config;
+      } else if (behavior === 'interrupt') {
+        configs[config.stateName] = config;
+      } else if (behavior === 'queue') {
 
-    var stateObj = {};
-    for (var key in stateConfig) {
-      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
-
-      // set state value to the initialValue passed in `stateConfig`
-      stateObj[key] = stateConfig[key][2];
+      } else {
+        throw 'mary';
+      }
+    } else {
+      configs[config.stateName] = config;
     }
 
-    this.setState(stateObj, function() {
-      this.__transition(stateObj, stateConfig, done);
-    }.bind(this));
+    config.initTime = Date.now();
+    if (!this.__animating) {
+      this.__animating = true;
+      this.__transition();
+    }
   },
 
-  __transition: function(stateObj, stateConfig, done) {
-    var allDone = true;
+  __transition: function() {
+    var configs = this.__animConfigs;
+    if (!this.__stateObj) {
+      this.__stateObj = {};
+    }
 
-    for (var key in stateConfig) {
-      if (!{}.hasOwnProperty.call(stateConfig, key)) continue;
+    var state = this.__stateObj;
+    var progressTime;
+    var doneCallbacks = {};
 
-      var curConfig = stateConfig[key];
+    for (var key in configs) {
+      var config = configs[key];
+      var duration = config.transitionParams[2];
       var now = Date.now();
-      if (now - curConfig[5] < curConfig[4]) {
-        allDone = false;
-        curConfig[1] = now - curConfig[5]
+
+      if (now - config.initTime < duration) {
+        progressTime = now - config.initTime;
       } else {
-        curConfig[1] = curConfig[4];
+        // animate to the final state one last time to avoid rounding errors
+        progressTime = duration;
+        doneCallbacks[key] = config.callback;
       }
 
-      stateObj[key] = curConfig[0](curConfig[1], curConfig[2], curConfig[3], curConfig[4]);
+      state[key] = config.transitionMethod.apply(null, [progressTime].concat(config.transitionParams));
     }
 
     requestAnimationFrame(function() {
-      this.setState(stateObj, function() {
-        if (allDone) {
+      this.setState(state, function() {
+        for (var key in doneCallbacks) {
+          doneCallbacks[key]();
+          delete configs[key];
+          delete state[key]
+        }
+        if (Object.keys(configs).length === 0) {
           this.__animating = false;
-          return done();
+          return;
         }
 
-        this.__transition(stateObj, stateConfig, done);
+        this.__transition();
       }.bind(this));
     }.bind(this));
   }
@@ -117,7 +136,7 @@ var Switch = React.createClass({
 
   getInitialState: function() {
     return {
-      scale: 0,
+      scale: 1,
       rotation: 0
     }
   },
@@ -126,22 +145,45 @@ var Switch = React.createClass({
     this.playResetAnim();
   },
 
-  componentDidUpdate: function() {
-    this.playResetAnim();
-  },
-
   playResetAnim: function() {
-    // setTimeout(function() {
-      this.animate({
-        scale: this.configAnim(easeOutBounce, 800, 0, 1),
-      });
-    // }.bind(this), (this.props.posX + this.props.posY) * 35);
+    console.log(this._lifeCycleState);
+    var animPolicy = {
+      stateName: 'scale',
+      transitionMethod: easeOutBounce,
+      transitionParams: [0, 1, 800],
+      behavior: 'interrupt',
+      delay: (this.props.posX + this.props.posY) * 35,
+      callback: function() {
+        console.log('done reset');
+      }
+    };
+    this.animate(animPolicy);
+
+    var animPolicy2 = {
+      stateName: 'rotation',
+      transitionMethod: easeOutQuad,
+      transitionParams: [0, 360, 1000],
+      behavior: 'interrupt',
+      delay: (this.props.posX + this.props.posY) * 35,
+      callback: function() {
+        console.log('done reset');
+      }
+    };
+    this.animate(animPolicy2);
   },
 
   playClickedAnim: function() {
-    this.animate({
-      scale: this.configAnim(easeOutQuad, 300, .8, 1),
-    }, 'clickedAnim');
+    var animPolicy = {
+      stateName: 'scale',
+      transitionMethod: easeOutQuad,
+      transitionParams: [.8, 10.5, 300],
+      behavior: 'interrupt',
+      callback: function() {
+        console.log('done');
+      }
+    };
+    console.log(this.__stateObj);
+    this.animate(animPolicy);
   },
 
   onMouseDown: function(e) {
@@ -171,6 +213,21 @@ var LightsOut = React.createClass({
       done: false,
       reset: true
     };
+  },
+
+  componentDidUpdate: function() {
+    // this.refs.grid.props.children.forEach(function(row) {
+    //   console.log('basha', row._lifeCycleState);
+    //   row.props.children.forEach(function(cell) {
+    //     console.log(cell._lifeCycleState, 'baha');
+    //     cell.playResetAnim();
+    //   });
+    // });
+    this.state.board.forEach(function(row, i) {
+      row.forEach(function(cell, j) {
+        this.refs[i + ',' + j].playResetAnim();
+      }, this);
+    }, this);
   },
 
   getNewRandomBoard: function() {
@@ -258,6 +315,7 @@ var LightsOut = React.createClass({
                           onMouseDown={this.handleSwitchClick.bind(this, i, j)}
                           posX={i}
                           posY={j}
+                          ref={i + ',' + j}
                         />
                       )
                     }, this)
