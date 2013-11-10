@@ -53,27 +53,27 @@ function easeOutBounce(t, b, c, d) {
 var Apple = {
   __animating: false,
 
+  stopAnimation: function(stateNames) {
+    if (!this.__animConfigs) return;
+
+    stateNames.forEach(function(name) {
+      if (!this.__animConfigs[name]) return;
+
+      this.__animConfigs[name].callback();
+      delete this.__animConfigs[name];
+    }, this);
+  },
+
   animate: function(config) {
     if (!this.__animConfigs) {
       this.__animConfigs = {};
     }
-    var behavior = config.behavior || 'continue';
     var configs = this.__animConfigs;
 
     if (configs[config.stateName]) {
-      if (behavior === 'continue') {
         config.transitionParams[0] = this.__stateObj[config.stateName];
-        configs[config.stateName] = config;
-      } else if (behavior === 'interrupt') {
-        configs[config.stateName] = config;
-      } else if (behavior === 'queue') {
-
-      } else {
-        throw 'mary';
-      }
-    } else {
-      configs[config.stateName] = config;
     }
+    configs[config.stateName] = config;
 
     config.initTime = Date.now();
     if (!this.__animating) {
@@ -146,15 +146,15 @@ var Switch = React.createClass({
   },
 
   playResetAnim: function() {
-    console.log(this._lifeCycleState);
+    this.stopAnimation(['scale', 'rotation', 'fade']);
+
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutBounce,
       transitionParams: [0, 1, 800],
-      behavior: 'interrupt',
       delay: (this.props.posX + this.props.posY) * 35,
       callback: function() {
-        console.log('done reset');
+        console.log('done reset scale');
       }
     };
     this.animate(animPolicy);
@@ -163,10 +163,9 @@ var Switch = React.createClass({
       stateName: 'rotation',
       transitionMethod: easeOutQuad,
       transitionParams: [0, 360, 1000],
-      behavior: 'interrupt',
       delay: (this.props.posX + this.props.posY) * 35,
       callback: function() {
-        console.log('done reset');
+        console.log('done reset rotate');
       }
     };
     this.animate(animPolicy2);
@@ -177,12 +176,10 @@ var Switch = React.createClass({
       stateName: 'scale',
       transitionMethod: easeOutQuad,
       transitionParams: [.8, 10.5, 300],
-      behavior: 'interrupt',
       callback: function() {
-        console.log('done');
+        console.log('done click');
       }
     };
-    console.log(this.__stateObj);
     this.animate(animPolicy);
   },
 
