@@ -208,33 +208,37 @@ var Switch = React.createClass({
     this.animate(animPolicy3);
   },
 
-  playClickedAnim: function() {
-    console.log('playing click anim');
+  playPressAnim: function(delay) {
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
       transitionParams: [.8, 100],
-      callback: function() {
-        console.log('clicked first part done');
-      }
+      delay: delay || 0,
     };
 
-    var animPolicy2 = {
+    this.animate(animPolicy);
+  },
+
+  playReleaseAnim: function(delay) {
+    var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
-      transitionParams: [1, 1000],
+      transitionParams: [1, 100],
+      delay: delay || 0,
       behavior: 'queue',
-      callback: function() {
-        console.log('finally clicked done');
-      }
-    }
+    };
+
     this.animate(animPolicy);
-    this.animate(animPolicy2);
   },
 
   onMouseDown: function(e) {
-    // this.playClickedAnim();
-    this.props.onMouseDown && this.props.onMouseDown(this.playClickedAnim);
+    this.playPressAnim();
+    this.props.onMouseDown && this.props.onMouseDown();
+  },
+
+  onMouseUp: function() {
+    this.playReleaseAnim();
+    this.props.onMouseUp && this.props.onMouseUp();
   },
 
   render: function() {
@@ -251,7 +255,15 @@ var Switch = React.createClass({
       WebkitTransform: 'scale(' + state.scale + ') rotateZ(' + state.rotation + 'deg)',
       opacity: state.opacity
     };
-    return <div className={classSet(classes)} style={style} onMouseDown={this.onMouseDown} />
+    return (
+      <div
+        className={classSet(classes)}
+        style={style}
+        onMouseDown={this.onMouseDown}
+        onMouseUp={this.onMouseUp}
+        onMouseLeave={this.onMouseUp}
+      />
+    );
   }
 });
 
@@ -262,14 +274,6 @@ var LightsOut = React.createClass({
       done: false,
       reset: true
     };
-  },
-
-  componentDidUpdate: function() {
-    this.state.board.forEach(function(row, i) {
-      row.forEach(function(cell, j) {
-        this.refs[i + ',' + j].playResetAnim();
-      }, this);
-    }, this);
   },
 
   getNewRandomBoard: function() {
@@ -286,9 +290,22 @@ var LightsOut = React.createClass({
       board: this.getNewRandomBoard(),
       done: false,
       reset: true,
-      clickedI: null,
-      clickedJ: null
-    });
+    }, function() {
+      this.state.board.forEach(function(row, i) {
+        row.forEach(function(cell, j) {
+          this.refs[i + ',' + j].playResetAnim();
+        }, this);
+      }, this);
+    }.bind(this));
+  },
+
+  handleNeighborRelease: function(i, j) {
+    var board = this.state.board;
+    var refs = this.refs;
+    if (i !== 0) refs[(i - 1) + ',' + j].playReleaseAnim(60);
+    if (i !== board[i].length - 1) refs[(i + 1) + ',' + j].playReleaseAnim(60);
+    if (j !== 0) refs[i + ',' + (j - 1)].playReleaseAnim(60);
+    if (j !== board.length - 1) refs[i + ',' + (j + 1)].playReleaseAnim(60);
   },
 
   handleSwitchClick: function(i, j, callback) {
@@ -301,32 +318,27 @@ var LightsOut = React.createClass({
     if (j !== 0) board[i][j - 1] = !board[i][j - 1];
     if (j !== board.length - 1) board[i][j + 1] = !board[i][j + 1];
 
+    var refs = this.refs;
+    if (i !== 0) refs[(i - 1) + ',' + j].playPressAnim(60);
+    if (i !== board[i].length - 1) refs[(i + 1) + ',' + j].playPressAnim(60);
+    if (j !== 0) refs[i + ',' + (j - 1)].playPressAnim(60);
+    if (j !== board.length - 1) refs[i + ',' + (j + 1)].playPressAnim(60);
+
     var done = this.state.board.every(function(row) {
       return row.every(function(cell) {
         return !!cell;
       });
     });
-    done = false;
+
     var updatedState = {
       board: this.state.board,
       done: done,
       reset: false,
-      clickedI: i,
-      clickedJ: j
     }
 
     this.setState(updatedState, function() {
-      callback && callback();
       if (done) {
-        setTimeout(function() {
-          this.setState({
-            board: this.getNewRandomBoard(),
-            done: false,
-            reset: true,
-            clickedI: null,
-            clickedJ: null
-          });
-        }.bind(this), 500);
+        setTimeout(this.handleReset, 1000);
       }
     }.bind(this));
   },
@@ -356,8 +368,9 @@ var LightsOut = React.createClass({
                           isOn={!!cell}
                           done={state.done}
                           onMouseDown={this.handleSwitchClick.bind(this, i, j)}
-                          posX={i}
-                          posY={j}
+                          onMouseUp={this.handleNeighborRelease.bind(this, i, j)}
+                          i={i}
+                          j={j}
                           delay={(Math.abs(i - (row.length - 1) / 2) + Math.abs(j - (row.length - 1) / 2)) * 60}
                           ref={i + ',' + j}
                         />
