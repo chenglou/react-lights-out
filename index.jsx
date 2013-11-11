@@ -24,9 +24,9 @@ var boards = [
   ]
 ];
 
-boards = [
-  [[1]]
-]
+// boards = [
+//   [[1]]
+// ]
 
 var classSet = React.addons.classSet;
 
@@ -50,6 +50,11 @@ function easeOutBounce(t, b, c, d) {
   }
 }
 
+function linear(t, b, c, d) {
+  c = c - b;
+  return c * t/d + b;
+}
+
 var Apple = {
   __transitioning: false,
 
@@ -61,6 +66,17 @@ var Apple = {
 
     config.initTime = Date.now() + (config.delay || 0);
     config.initVal = this.state[config.stateName];
+
+    if (config.behavior === 'queue') {
+       if (configs[config.stateName]) {
+          var oldCallback = configs[config.stateName].callback;
+          configs[config.stateName].callback = function() {
+            oldCallback && oldCallback();
+            this.animate(config);
+          }.bind(this);
+          return;
+       }
+    }
 
     if (configs[config.stateName]) {
       // terminate the previous by calling back before override
@@ -101,8 +117,8 @@ var Apple = {
     requestAnimationFrame(function() {
       this.setState(state, function() {
         for (var key in doneCallbacks) {
-          doneCallbacks[key] && doneCallbacks[key]();
           delete configs[key];
+          doneCallbacks[key] && doneCallbacks[key]();
         }
         if (Object.keys(configs).length === 0) {
           this.__transitioning = false;
@@ -158,26 +174,38 @@ var Switch = React.createClass({
     console.log('playing reset anim');
     var animPolicy = {
       stateName: 'scale',
-      transitionMethod: easeOutBounce,
-      transitionParams: [1, 1000],
+      transitionMethod: linear,
+      transitionParams: [.4, 200],
       delay: this.props.delay,
       callback: function() {
         console.log('done reset scale');
       }
     };
-
     var animPolicy2 = {
+      stateName: 'scale',
+      transitionMethod: easeOutQuad,
+      transitionParams: [1, 200],
+      behavior: 'queue',
+      callback: function() {
+        console.log('done reset scale');
+      }
+    };
+    var animPolicy3 = {
       stateName: 'rotation',
       transitionMethod: easeOutQuad,
-      transitionParams: [360, 500],
+      transitionParams: [Math.ceil(this.state.rotation / 90 + 1) * 90, 400],
       delay: this.props.delay,
       callback: function() {
         console.log('done reset rotate');
-      }
+        // this.setState({
+        //   rotation: 0
+        // });
+      }.bind(this)
     };
 
     this.animate(animPolicy);
     this.animate(animPolicy2);
+    this.animate(animPolicy3);
   },
 
   playClickedAnim: function() {
@@ -186,12 +214,19 @@ var Switch = React.createClass({
       stateName: 'scale',
       transitionMethod: easeOutQuad,
       transitionParams: [.8, 100],
+      callback: function() {
+        console.log('clicked first part done');
+      }
     };
+
     var animPolicy2 = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
-      transitionParams: [1, 100],
-      delay: 100
+      transitionParams: [1, 1000],
+      behavior: 'queue',
+      callback: function() {
+        console.log('finally clicked done');
+      }
     }
     this.animate(animPolicy);
     this.animate(animPolicy2);
