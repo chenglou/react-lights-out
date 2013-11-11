@@ -53,30 +53,22 @@ function easeOutBounce(t, b, c, d) {
 var Apple = {
   __transitioning: false,
 
-  stopAnimation: function(stateNames) {
-    if (!this.__animConfigs) return;
-
-    stateNames.forEach(function(name) {
-      if (!this.__animConfigs[name]) return;
-      var config = this.__animConfigs[name];
-      config.callback();
-      this.__stateObj[name] = config.transitionMethod.apply(null, [config.transitionParams[2]].concat(config.transitionParams));
-      delete this.__animConfigs[name]
-    }, this);
-  },
-
   animate: function(config) {
     if (!this.__animConfigs) {
       this.__animConfigs = {};
     }
     var configs = this.__animConfigs;
 
+    config.initTime = Date.now() + (config.delay || 0);
+    config.initVal = this.state[config.stateName];
+
     if (configs[config.stateName]) {
-        config.transitionParams[0] = this.__stateObj[config.stateName];
+      // terminate the previous by calling back before override
+      configs[config.stateName].callback && configs[config.stateName].callback();
     }
+
     configs[config.stateName] = config;
 
-    config.initTime = Date.now();
     if (!this.__transitioning) {
       this.__transitioning = true;
       this.__transition();
@@ -85,18 +77,16 @@ var Apple = {
 
   __transition: function() {
     var configs = this.__animConfigs;
-    if (!this.__stateObj) {
-      this.__stateObj = {};
-    }
-
-    var state = this.__stateObj;
+    var state = this.state;
     var progressTime;
     var doneCallbacks = {};
 
     for (var key in configs) {
       var config = configs[key];
-      var duration = config.transitionParams[2];
+      var duration = config.transitionParams[1];
       var now = Date.now();
+
+      if (now < config.initTime) continue;
 
       if (now - config.initTime < duration) {
         progressTime = now - config.initTime;
@@ -105,16 +95,14 @@ var Apple = {
         progressTime = duration;
         doneCallbacks[key] = config.callback;
       }
-
-      state[key] = config.transitionMethod.apply(null, [progressTime].concat(config.transitionParams));
+      state[key] = config.transitionMethod.apply(null, [progressTime, config.initVal].concat(config.transitionParams));
     }
 
     requestAnimationFrame(function() {
       this.setState(state, function() {
         for (var key in doneCallbacks) {
-          doneCallbacks[key]();
+          doneCallbacks[key] && doneCallbacks[key]();
           delete configs[key];
-          delete state[key]
         }
         if (Object.keys(configs).length === 0) {
           this.__transitioning = false;
@@ -136,21 +124,43 @@ var Switch = React.createClass({
 
   getInitialState: function() {
     return {
-      scale: 1,
-      rotation: 0
+      scale: 0,
+      rotation: 0,
+      opacity: 1
     }
   },
 
   componentDidMount: function() {
-    this.playResetAnim();
+    this.playMountAnim();
+    // setTimeout(function() {
+    //   console.log('-------------------');
+    //   this.setState({
+    //     rotation: 200,
+    //   });
+    // }.bind(this), 5000);
+  },
+
+  playMountAnim: function() {
+    console.log('playing mount anim');
+    var animPolicy = {
+      stateName: 'scale',
+      transitionMethod: easeOutQuad,
+      transitionParams: [1, 400],
+      delay: this.props.delay,
+      callback: function() {
+        console.log('done reset scale');
+      }
+    };
+    this.animate(animPolicy);
   },
 
   playResetAnim: function() {
+    console.log('playing reset anim');
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutBounce,
-      transitionParams: [0, 1, 800],
-      delay: (this.props.posX + this.props.posY) * 35,
+      transitionParams: [1, 1000],
+      delay: this.props.delay,
       callback: function() {
         console.log('done reset scale');
       }
@@ -159,30 +169,32 @@ var Switch = React.createClass({
     var animPolicy2 = {
       stateName: 'rotation',
       transitionMethod: easeOutQuad,
-      transitionParams: [0, 360, 1000],
-      delay: (this.props.posX + this.props.posY) * 35,
+      transitionParams: [360, 500],
+      delay: this.props.delay,
       callback: function() {
         console.log('done reset rotate');
       }
     };
 
-    this.stopAnimation(['scale', 'rotation', 'fade']);
     this.animate(animPolicy);
     this.animate(animPolicy2);
   },
 
   playClickedAnim: function() {
-    this.stopAnimation(['scale', 'rotation', 'fade']);
-
+    console.log('playing click anim');
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
-      transitionParams: [.8, 2, 300],
-      callback: function() {
-        console.log('done click');
-      }
+      transitionParams: [.8, 100],
     };
+    var animPolicy2 = {
+      stateName: 'scale',
+      transitionMethod: easeOutQuad,
+      transitionParams: [1, 100],
+      delay: 100
+    }
     this.animate(animPolicy);
+    this.animate(animPolicy2);
   },
 
   onMouseDown: function(e) {
@@ -197,10 +209,12 @@ var Switch = React.createClass({
       'switch-on': this.props.isOn,
       'switch-off': !this.props.isOn
     }
+    var state = this.state;
 
     var style = {
-      transform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)',
-      WebkitTransform: 'scale(' + this.state.scale + ') rotateZ(' + this.state.rotation + 'deg)'
+      transform: 'scale(' + state.scale + ') rotateZ(' + state.rotation + 'deg)',
+      WebkitTransform: 'scale(' + state.scale + ') rotateZ(' + state.rotation + 'deg)',
+      opacity: state.opacity
     };
     return <div className={classSet(classes)} style={style} onMouseDown={this.onMouseDown} />
   }
@@ -309,6 +323,7 @@ var LightsOut = React.createClass({
                           onMouseDown={this.handleSwitchClick.bind(this, i, j)}
                           posX={i}
                           posY={j}
+                          delay={(Math.abs(i - (row.length - 1) / 2) + Math.abs(j - (row.length - 1) / 2)) * 60}
                           ref={i + ',' + j}
                         />
                       )
