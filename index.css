@@ -18,15 +18,15 @@
   opacity: 0.8;
 }
 
-.switch-on {
+/*.switch-on {
   background-color: rgb(77, 172, 230);
 }
 
 .switch-off {
   background-color: rgb(223, 223, 223);
-}
+}*/
 
-.switch-done {
+/*.switch-done {
   transition: all .3s ease-out;
   background-color: lightgreen;
-}
+}*/

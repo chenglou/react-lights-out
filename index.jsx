@@ -142,70 +142,62 @@ var Switch = React.createClass({
     return {
       scale: 0,
       rotation: 0,
-      opacity: 1
+      color: this.props.isOn ? 264182334 : 811880979,
     }
   },
 
   componentDidMount: function() {
     this.playMountAnim();
-    // setTimeout(function() {
-    //   console.log('-------------------');
-    //   this.setState({
-    //     rotation: 200,
-    //   });
-    // }.bind(this), 5000);
   },
 
   playMountAnim: function() {
-    console.log('playing mount anim');
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
       transitionParams: [1, 400],
       delay: this.props.delay,
-      callback: function() {
-        console.log('done reset scale');
-      }
     };
+    var animPolicy2 = {
+      stateName: 'color',
+      transitionMethod: easeOutQuad,
+      transitionParams: [this.props.isOn ? 264182334 : 811880979, 400],
+      delay: this.props.delay,
+    };
+
     this.animate(animPolicy);
+    this.animate(animPolicy2);
   },
 
   playResetAnim: function() {
-    console.log('playing reset anim');
     var animPolicy = {
       stateName: 'scale',
       transitionMethod: linear,
       transitionParams: [.4, 200],
       delay: this.props.delay,
-      callback: function() {
-        console.log('done reset scale');
-      }
     };
     var animPolicy2 = {
       stateName: 'scale',
       transitionMethod: easeOutQuad,
       transitionParams: [1, 200],
       behavior: 'queue',
-      callback: function() {
-        console.log('done reset scale');
-      }
     };
     var animPolicy3 = {
       stateName: 'rotation',
       transitionMethod: easeOutQuad,
       transitionParams: [Math.ceil(this.state.rotation / 90 + 1) * 90, 400],
       delay: this.props.delay,
-      callback: function() {
-        console.log('done reset rotate');
-        // this.setState({
-        //   rotation: 0
-        // });
-      }.bind(this)
+    };
+    var animPolicy4 = {
+      stateName: 'color',
+      transitionMethod: easeOutQuad,
+      transitionParams: [this.props.isOn ? 264182334 : 811880979, 400],
+      delay: this.props.delay,
     };
 
     this.animate(animPolicy);
     this.animate(animPolicy2);
     this.animate(animPolicy3);
+    this.animate(animPolicy4);
   },
 
   playPressAnim: function(delay) {
@@ -215,8 +207,15 @@ var Switch = React.createClass({
       transitionParams: [.8, 100],
       delay: delay || 0,
     };
+    var animPolicy2 = {
+      stateName: 'color',
+      transitionMethod: easeOutQuad,
+      transitionParams: [this.props.isOn ? 264182334 : 811880979, 400],
+      delay: this.props.delay,
+    };
 
     this.animate(animPolicy);
+    this.animate(animPolicy2);
   },
 
   playReleaseAnim: function(delay) {
@@ -253,7 +252,7 @@ var Switch = React.createClass({
     var style = {
       transform: 'scale(' + state.scale + ') rotateZ(' + state.rotation + 'deg)',
       WebkitTransform: 'scale(' + state.scale + ') rotateZ(' + state.rotation + 'deg)',
-      opacity: state.opacity
+      backgroundColor: '#' + state.color.toString(36)
     };
     return (
       <div
